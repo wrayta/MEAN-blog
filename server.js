@@ -1,7 +1,11 @@
 var express = require('express');
 var app = express();
+var path = require('path');
+
+app.use(express.static(path.join(__dirname, 'public')));
+
 var bodyParser = require('body-parser');
-var Post = require('./public/post');
+var Post = require('./public/scripts/post.js');
 
 var mysql = require('mysql');
 
@@ -29,9 +33,8 @@ connection.connect(function(err){
 
 connection.query('use ' + DATABASE);
 
-app.use(express.static(__dirname + '/public'));
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true}));
+app.use(bodyParser.json({limit: '50mb'}));
+app.use(bodyParser.urlencoded({limit: '50mb', extended: true}));
 
 app.post("/api/blogpost", createPost);
 app.get("/api/blogpost", getAllPosts);
@@ -44,7 +47,7 @@ function updatePost(req, res) {
     var post = req.body;
 
     connection.query('UPDATE ' + TABLE + ' SET title="' + post.title
-        + '", body="' + post.body + '" WHERE id=' + postId,
+        + '", body="' + post.body + '", image="' + post.image + '" WHERE id=' + postId,
         function (err, res) {
             if (err){
                 res.sendStatus(400);
@@ -65,7 +68,7 @@ function getPostById(req, res) {
             }
             console.log('Last insert ID: ', response.insertId);
 
-            var editedPost = new Post(rows[0].id, rows[0].title, rows[0].body);
+            var editedPost = new Post(rows[0].id, rows[0].title, rows[0].body, rows[0].posted, rows[0].image);
 
             res.json(editedPost);
         });
@@ -99,8 +102,8 @@ function getAllPosts(req, res) {
 
             var posts = [];
 
-            for(var i in rows) {
-                var aPost = new Post(rows[i].id, rows[i].title, rows[i].body);
+            for(var i = rows.length - 1; i >= 0; i--) {
+                var aPost = new Post(rows[i].id, rows[i].title, rows[i].body, rows[i].posted, rows[i].image);
                 posts.push(aPost);
             }
 
@@ -113,16 +116,24 @@ function getAllPosts(req, res) {
 }
 
 function createPost(req, res) {
+
     var post = req.body;
-    console.log(post);
-    connection.query('insert into '+ TABLE +' (title, body) values ("' + post.title + '", "' + post.body + '")',
-        function (err, res) {
+
+    // console.log("Blog title: " + post.title);
+    // console.log("Blog body: " + post.body);
+    // console.log("Blog image: " + post.image);
+
+    connection.query('insert into '+ TABLE +' (title, body, image) values ("' + post.title + '", "' + post.body + '", "' + post.image + '")',
+        function (err, response) {
             if (err){
                 res.sendStatus(400);
             }
-            console.log('Last insert ID: ', res.insertId);
-        });
+            // console.log('createPost success!');
 
-    res.json(200);
+            else{
+                res.sendStatus(200);
+            }
+        });
 }
+
 app.listen(3000);
